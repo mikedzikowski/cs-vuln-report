@@ -2,6 +2,8 @@
 
 A comprehensive Python script that fetches all container vulnerabilities from CrowdStrike Falcon and aggregates image counts for each CVE, providing detailed vulnerability analysis and reporting with **working registry filtering**.
 
+This script is not supported by CrowdStrike and is provided "as-is". 
+
 ## 🚀 Features
 
 - **Complete Data Extraction**: Fetches ALL vulnerabilities from your CrowdStrike environment (not just the first 100)
