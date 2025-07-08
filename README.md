@@ -427,4 +427,3 @@ This script is provided as-is for CrowdStrike customers. Modify and distribute a
 
 **⚠️ Important**: This script processes ALL vulnerabilities in your environment. For large deployments, expect significant runtime and ensure adequate system resources. **Registry filtering is now fully functional and tested!** 🎉
 
-**🎯 Pro Tip**: Always run registry discovery first to see what registries are available in your environment, then configure filtering accordingly for optimal results.
