@@ -23,7 +23,7 @@ A comprehensive Python script that fetches all container vulnerabilities from Cr
 
 1. **Clone or download the script**
 ```bash
-wget https://your-script-location/crowdstrike_vuln_analyzer.py
+wget https://github.com/mikedzikowski/cs-vuln-report/crowdstrike_vuln_analyzer.py
 # or copy the script content to a local file
 ```
 
