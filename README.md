@@ -1,17 +1,17 @@
-# cs-vuln-report
-
 # CrowdStrike Container Vulnerability Analyzer
 
-A comprehensive Python script that fetches all container vulnerabilities from CrowdStrike Falcon and aggregates image counts for each CVE, providing detailed vulnerability analysis and reporting.
+A comprehensive Python script that fetches all container vulnerabilities from CrowdStrike Falcon and aggregates image counts for each CVE, providing detailed vulnerability analysis and reporting with **working registry filtering**.
 
 ## 🚀 Features
 
 - **Complete Data Extraction**: Fetches ALL vulnerabilities from your CrowdStrike environment (not just the first 100)
 - **CVE Image Mapping**: Gets exact image counts affected by each CVE using CrowdStrike's aggregation API
-- **Registry Filtering**: Support for including/excluding specific container registries
-- **Comprehensive Reporting**: Detailed JSON output with vulnerability metadata, impact analysis, and statistics
+- **✅ Working Registry Filtering**: Include/exclude specific container registries with verified functionality
+- **Registry Discovery**: Automatically discovers all active registries in your environment
+- **Comprehensive Reporting**: Detailed JSON output with vulnerability metadata, registry breakdowns, and impact analysis
 - **Error Handling**: Robust retry logic and graceful handling of API limits
 - **Progress Tracking**: Real-time progress indicators for large datasets
+- **Scalable Architecture**: Handles environments from small (1K vulnerabilities) to mega enterprise (100K+ vulnerabilities)
 
 ## 📋 Prerequisites
 
@@ -57,26 +57,42 @@ CLIENT_SECRET = "your_client_secret_here"
 
 ## 🏃‍♂️ Usage
 
-### Basic Usage (All Vulnerabilities)
+### Basic Usage (All Vulnerabilities, All Registries)
 ```bash
 python3 crowdstrike_vuln_analyzer.py
 ```
 
-### Advanced Configuration Options
+### Registry Filtering Options
 
-#### Registry Filtering
+#### Option 1: Include Only Specific Registries ✅ **RECOMMENDED**
 ```python
-# Include only specific registries
 INCLUDE_REGISTRIES = [
-    "your-company.registry.com",
-    "private.registry.internal"
+    "registry-1.docker.io",  # Docker Hub
+    "gcr.io",                # Google Container Registry
+    "quay.io",               # Red Hat Quay
+    "your-company.registry.com"  # Your private registry
 ]
-
-# Include all registries (default)
-INCLUDE_REGISTRIES = None
+EXCLUDE_REGISTRIES = None
 ```
 
-#### Vulnerability Filtering
+#### Option 2: Exclude Specific Registries
+```python
+INCLUDE_REGISTRIES = None
+EXCLUDE_REGISTRIES = [
+    "mcr.microsoft.com",     # Microsoft Container Registry
+    "public.ecr.aws",        # AWS Public ECR
+    "registry.redhat.io"     # Red Hat Registry
+]
+```
+
+#### Option 3: All Registries (Default)
+```python
+INCLUDE_REGISTRIES = None
+EXCLUDE_REGISTRIES = None
+```
+
+### Vulnerability Filtering Options
+
 ```python
 # Only high and critical vulnerabilities
 VULN_FILTERS = "severity:['High','Critical']"
@@ -91,71 +107,88 @@ VULN_FILTERS = "exploit_found:true"
 VULN_FILTERS = None
 ```
 
+### Environment Size Handling
+
+The script automatically detects and handles different environment sizes:
+
+- **Small** (< 1K vulnerabilities): ~5-10 minutes
+- **Medium** (1K-10K vulnerabilities): ~10-30 minutes  
+- **Large** (10K-50K vulnerabilities): ~30-120 minutes
+- **Enterprise** (50K-100K vulnerabilities): ~2-4 hours
+- **Mega Enterprise** (100K+ vulnerabilities): Requires filtering
+
 ## 📊 Output
 
 ### Console Output
-The script provides real-time progress and summary statistics:
+The script provides real-time progress and comprehensive statistics:
 
 ```
-🚀 CROWDSTRIKE COMPLETE VULNERABILITY SCAN - TRULY FIXED
+🚀 CROWDSTRIKE VULNERABILITY ANALYZER - REGISTRY FILTERING WORKS!
 ================================================================================
 
---- BATCH 1 ---
-Offset: 0, Limit: 100
-✅ API Response: 100 vulnerabilities
-🎯 API reports 9503 total vulnerabilities available
-📈 Total collected: 100
+🔍 Registry Discovery (optional):
+Testing 17 common registries with 5 CVEs...
+  ✅ Found active registry: registry-1.docker.io
+  ✅ Found active registry: gcr.io
+  ✅ Found active registry: quay.io
+  ✅ Found active registry: mcr.microsoft.com
 
+✅ Discovery complete! Found 4 active registries
+
+📊 Including only registries: ['registry-1.docker.io', 'gcr.io', 'quay.io']
+
+Batch 1: offset=0, limit=100
+🎯 Total vulnerabilities available: 9,503
+✅ Added 100 vulnerabilities (total: 100)
 ...
 
-✅ COLLECTED 9,503 TOTAL VULNERABILITIES
-🔍 Extracting unique CVE IDs...
-✅ FOUND 2,847 UNIQUE CVE IDs
+✅ Collected 9,503 vulnerabilities
+✅ Found 2,847 unique CVE IDs
 
-🔄 PROCESSING ALL 2,847 CVEs FOR IMAGE COUNTS
-📊 Progress: 1/2847 CVEs (0.0%)
-📊 Progress: 100/2847 CVEs (3.5%)
+🔄 Processing 2,847 CVEs for image counts...
+📊 Progress: 1/2,847 (0.0%)
+📊 Progress: 100/2,847 (3.5%)
 ...
 
-🎉 TRULY FIXED ANALYSIS RESULTS 🎉
+🎉 ANALYSIS COMPLETE - REGISTRY FILTERING WORKING! 🎉
 ⏱️  Runtime: 45m 23s
-💾 Results saved to: vulnerability_analysis_TRULY_FIXED_20250107_173743.json
+💾 Results saved to: vulnerability_analysis_INCLUDE_REGISTRIES_20250107_173743.json
 🔍 Total CVEs processed: 2,847
 
-📊 AGGREGATION SUMMARY:
+📊 SUMMARY:
    ✅ Successful: 2,840
-   ❌ Failed: 7
-   📈 Success rate: 99.8%
-   🖼️  Total images affected: 125,432
+   🖼️  Total images: 45,231
 
-🎯 IMPACT DISTRIBUTION:
-   🔴 Critical (>500 images): 23
-   🟠 High (101-500 images): 156
-   🟡 Medium (11-100 images): 445
-   🟢 Low (1-10 images): 892
-   ⚪ None (0 images): 1,331
-
-🏆 TOP 30 CVEs BY IMAGE COUNT:
- 1. CVE-2025-0395: 930 images 🟠 High (CVSS: 7.5) ✅
- 2. CVE-2023-0465: 921 images 🟡 Medium (CVSS: 5.3) ✅
- 3. CVE-2017-11164: 579 images 🟠 High (CVSS: 7.5) ✅
+🏆 TOP 20 CVEs BY IMAGE COUNT:
+ 1. CVE-2025-0395: 1,245 images 🟠 High (CVSS: 7.5)
+    Registry breakdown: registry-1.docker.io:856, gcr.io:234, quay.io:155
+ 2. CVE-2023-0465: 1,089 images 🟡 Medium (CVSS: 5.3)
+    Registry breakdown: registry-1.docker.io:1089
 ...
 ```
 
 ### JSON Output
-Detailed results are saved to a timestamped JSON file:
+Detailed results are saved to a timestamped JSON file with registry filtering information:
 
 ```json
 [
   {
     "cve_id": "CVE-2025-0395",
-    "image_count": 930,
+    "image_count": 1245,
+    "total_count": 2890,
+    "excluded_count": null,
+    "registry_breakdown": {
+      "registry-1.docker.io": 856,
+      "gcr.io": 234,
+      "quay.io": 155
+    },
+    "filtering_method": "include_registries",
     "severity": "High",
     "cvss_score": 7.5,
     "cps_current_rating": "Low",
     "description": "HTTP/2 protocol vulnerability that could allow...",
     "published_date": "2025-01-15T10:30:00Z",
-    "images_impacted": 930,
+    "images_impacted": 2890,
     "packages_impacted": 71,
     "containers_impacted": 580,
     "remediation_available": true,
@@ -174,44 +207,81 @@ import json
 import pandas as pd
 
 # Load results
-with open('vulnerability_analysis_TRULY_FIXED_20250107_173743.json', 'r') as f:
+with open('vulnerability_analysis_INCLUDE_REGISTRIES_20250107_173743.json', 'r') as f:
     results = json.load(f)
 
 # Convert to DataFrame for analysis
 df = pd.DataFrame(results)
 
-# Find high-impact vulnerabilities
-high_impact = df[df['image_count'] > 100]
-print(f"High impact CVEs: {len(high_impact)}")
+# Analyze registry-filtered results
+registry_filtered = df[df['filtering_method'] == 'include_registries']
+print(f"Registry-filtered CVEs: {len(registry_filtered)}")
 
-# Severity distribution
-print(df['severity'].value_counts())
+# Find high-impact vulnerabilities in your registries
+high_impact = df[df['image_count'] > 100]
+print(f"High impact CVEs in filtered registries: {len(high_impact)}")
+
+# Registry breakdown analysis
+for _, row in df.head(10).iterrows():
+    if row['registry_breakdown']:
+        print(f"{row['cve_id']}: {row['registry_breakdown']}")
 
 # Export to CSV for Excel
-df.to_csv('vulnerability_analysis.csv', index=False)
+df.to_csv('vulnerability_analysis_with_registries.csv', index=False)
 ```
 
-### Key Metrics
-- **Total CVEs**: Number of unique vulnerabilities found
-- **Image Count**: Exact number of container images affected per CVE
-- **Impact Distribution**: Categorization by number of affected images
-- **Success Rate**: Percentage of successful API aggregations
-- **Coverage**: Percentage of available data collected
+### Registry-Specific Analysis
+```python
+# Analyze which registries have the most vulnerabilities
+registry_totals = {}
+for result in results:
+    if result.get('registry_breakdown'):
+        for registry, count in result['registry_breakdown'].items():
+            if isinstance(count, int):
+                registry_totals[registry] = registry_totals.get(registry, 0) + count
 
-## 🔍 JSON Schema
+print("Images by registry:")
+for registry, total in sorted(registry_totals.items(), key=lambda x: x[1], reverse=True):
+    print(f"  {registry}: {total:,} images")
+```
 
-Each CVE entry contains:
+## 🔍 Registry Discovery
+
+The script includes automatic registry discovery:
+
+```python
+# Discovered registries in your environment
+available_registries = analyzer.discover_all_registries()
+print(f"Found registries: {available_registries}")
+
+# Common registries found in enterprise environments:
+# - registry-1.docker.io (Docker Hub)
+# - gcr.io (Google Container Registry)
+# - quay.io (Red Hat Quay)
+# - mcr.microsoft.com (Microsoft Container Registry)
+# - public.ecr.aws (AWS Public ECR)
+# - ghcr.io (GitHub Container Registry)
+# - registry.gitlab.com (GitLab Container Registry)
+```
+
+## 🔒 JSON Schema
+
+Each CVE entry contains enhanced registry information:
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `cve_id` | string | CVE identifier |
-| `image_count` | integer | Number of affected container images |
+| `image_count` | integer | Number of affected images (after registry filtering) |
+| `total_count` | integer | Total images before filtering (exclude method only) |
+| `excluded_count` | integer | Number of excluded images (exclude method only) |
+| `registry_breakdown` | object | Count per registry `{"registry": count}` |
+| `filtering_method` | string | `include_registries`, `exclude_registries`, or `all_registries` |
 | `severity` | string | Vulnerability severity (Critical/High/Medium/Low) |
 | `cvss_score` | float | CVSS base score (0-10) |
 | `cps_current_rating` | string | CrowdStrike's current risk rating |
 | `description` | string | Detailed vulnerability description |
 | `published_date` | string | CVE publication date (ISO format) |
-| `images_impacted` | integer | Images affected (from vulnerability data) |
+| `images_impacted` | integer | Total images affected (from vulnerability data) |
 | `packages_impacted` | integer | Number of affected packages |
 | `containers_impacted` | integer | Number of affected containers |
 | `remediation_available` | boolean | Whether remediation is available |
@@ -229,29 +299,79 @@ Each CVE entry contains:
 ```
 **Solution**: Verify your Client ID and Client Secret are correct and have Container Security: Read permissions.
 
-#### API Rate Limiting
+#### Registry Filtering Not Working
 ```
-❌ Error in batch X: 429 Too Many Requests
+❌ Registry filtering failed for all registries
 ```
-**Solution**: The script includes retry logic. If persistent, contact CrowdStrike support about rate limits.
+**Solution**: 
+1. Run the registry discovery first to see available registries
+2. Use exact registry names from the discovery output
+3. Check that registries actually contain vulnerable images
 
-#### Incomplete Data Collection
+#### No Registries Found
 ```
-📊 Coverage: 85.2%
+❌ No registries found - cannot test filtering
 ```
-**Solution**: This is normal due to API pagination limits. The script collects as much data as possible.
+**Solution**: Your environment might not have container images, or the API permissions might be insufficient.
 
-### Performance Optimization
+#### Performance Issues
+```
+⚠️ Processing taking longer than expected
+```
+**Solution**: 
+- Use `INCLUDE_REGISTRIES` to focus on specific registries
+- Add `VULN_FILTERS` to reduce the dataset size
+- Consider running during off-peak hours
 
-- **Large Environments**: For 10,000+ vulnerabilities, expect 30-60 minute runtime
-- **Registry Filtering**: Use `INCLUDE_REGISTRIES` instead of processing all registries for better performance
-- **Vulnerability Filtering**: Use `VULN_FILTERS` to focus on specific severity levels
+### Registry Filtering Debug
+
+If registry filtering isn't working, run the debug version:
+
+```python
+# Add this to test registry filtering
+analyzer.test_registry_filtering_comprehensive()
+```
+
+## 📊 Performance Guidelines
+
+### Small Environment (< 1K vulnerabilities)
+```python
+# Default settings work fine
+INCLUDE_REGISTRIES = None
+VULN_FILTERS = None
+# Expected runtime: 5-10 minutes
+```
+
+### Medium Environment (1K-10K vulnerabilities)
+```python
+# Consider focusing on important registries
+INCLUDE_REGISTRIES = ["your-prod-registry.com", "registry-1.docker.io"]
+VULN_FILTERS = None
+# Expected runtime: 10-30 minutes
+```
+
+### Large Environment (10K-50K vulnerabilities)
+```python
+# Recommended to use filtering
+INCLUDE_REGISTRIES = ["your-critical-registry.com"]
+VULN_FILTERS = "severity:['High','Critical']"
+# Expected runtime: 30-120 minutes
+```
+
+### Enterprise Environment (50K+ vulnerabilities)
+```python
+# Aggressive filtering recommended
+INCLUDE_REGISTRIES = ["production.registry.com"]
+VULN_FILTERS = "severity:['Critical']+exploit_found:true"
+# Expected runtime: 2-4 hours
+```
 
 ## 📝 API Endpoints Used
 
 1. **OAuth2 Token**: `/oauth2/token`
 2. **Vulnerabilities**: `/container-security/combined/vulnerabilities/v1`
-3. **Image Aggregation**: `/container-security/aggregates/images/count/v1`
+3. **Image Aggregation**: `/container-security/aggregates/images/count/v1` ✅ **Registry filtering works here**
+4. **Detections** (discovery): `/container-security/combined/detections/v1`
 
 ## 🔒 Security Notes
 
@@ -259,17 +379,41 @@ Each CVE entry contains:
 - The script only requires read permissions
 - All API calls use HTTPS
 - No sensitive data is logged or stored
+- Registry filtering happens server-side (secure)
+
+## 🎯 Use Cases
+
+### Security Team Prioritization
+```python
+# Focus on critical vulnerabilities in production registries
+INCLUDE_REGISTRIES = ["prod.company.com", "staging.company.com"]
+VULN_FILTERS = "severity:['Critical','High']"
+```
+
+### Compliance Reporting
+```python
+# Exclude public registries for internal compliance
+EXCLUDE_REGISTRIES = ["docker.io", "registry-1.docker.io", "public.ecr.aws"]
+VULN_FILTERS = None
+```
+
+### Development Team Focus
+```python
+# Include only development registries
+INCLUDE_REGISTRIES = ["dev.company.com", "test.company.com"]
+VULN_FILTERS = "remediation_available:true"
+```
+
+### Executive Dashboard
+```python
+# High-level overview of critical issues
+INCLUDE_REGISTRIES = None  # All registries
+VULN_FILTERS = "severity:['Critical']+exploit_found:true"
+```
 
 ## 📄 License
 
 This script is provided as-is for CrowdStrike customers. Modify and distribute according to your organization's policies.
-
-## 🤝 Support
-
-For issues related to:
-- **CrowdStrike APIs**: Contact CrowdStrike Support
-- **Script functionality**: Check the troubleshooting section above
-- **Custom modifications**: Consult your development team
 
 ## 🔄 Version History
 
@@ -277,7 +421,10 @@ For issues related to:
 - **v2.0**: Added proper pagination and error handling
 - **v3.0**: Fixed API limits and added comprehensive reporting
 - **v4.0**: Enhanced registry filtering and retry logic
+- **v5.0**: ✅ **Working registry filtering with discovery and comprehensive testing**
 
 ---
 
-**⚠️ Important**: This script processes ALL vulnerabilities in your environment. For large deployments, expect significant runtime and ensure adequate system resources.
+**⚠️ Important**: This script processes ALL vulnerabilities in your environment. For large deployments, expect significant runtime and ensure adequate system resources. **Registry filtering is now fully functional and tested!** 🎉
+
+**🎯 Pro Tip**: Always run registry discovery first to see what registries are available in your environment, then configure filtering accordingly for optimal results.
