@@ -42,84 +42,6 @@ class CrowdStrikeVulnAnalyzer:
             'Content-Type': 'application/json'
         }
     
-    def discover_all_registries(self) -> List[str]:
-        """Discover all registries that have images with vulnerabilities"""
-        print("🔍 Discovering all registries in your environment...")
-        
-        # Get a few test CVEs
-        vuln_url = f"{self.base_url}/container-security/combined/vulnerabilities/v1"
-        try:
-            response = requests.get(vuln_url, headers=self._get_headers(), params={'limit': 10})
-            response.raise_for_status()
-            data = response.json()
-            
-            vulnerabilities = data.get('resources', [])
-            if not vulnerabilities:
-                print("❌ No vulnerabilities found for registry discovery")
-                return []
-            
-            # Test with multiple CVEs to get a comprehensive list
-            test_cves = [v.get('cve_id') for v in vulnerabilities[:5]]
-            
-            # Extended list of common registries
-            common_registries = [
-                "docker.io",
-                "registry.hub.docker.com",
-                "registry-1.docker.io",
-                "gcr.io",
-                "us.gcr.io", 
-                "eu.gcr.io",
-                "asia.gcr.io",
-                "public.ecr.aws",
-                "quay.io",
-                "registry.redhat.io",
-                "mcr.microsoft.com",
-                "ghcr.io",
-                "registry.gitlab.com",
-                "harbor.io",
-                "artifactory.io",
-                "nexus.io",
-                "jfrog.io"
-            ]
-            
-            found_registries = set()
-            url = f"{self.base_url}/container-security/aggregates/images/count/v1"
-            
-            print(f"Testing {len(common_registries)} common registries with {len(test_cves)} CVEs...")
-            
-            for registry in common_registries:
-                registry_has_images = False
-                
-                for cve_id in test_cves:
-                    registry_filter = f"cve_id:'{cve_id}'+registry:'{registry}'"
-                    
-                    try:
-                        reg_response = requests.get(url, headers=self._get_headers(), 
-                                                  params={'filter': registry_filter})
-                        if reg_response.status_code == 200:
-                            reg_data = reg_response.json()
-                            reg_count = reg_data.get('resources', [{}])[0].get('count', 0)
-                            if reg_count > 0:
-                                registry_has_images = True
-                                break  # Found images in this registry, no need to test more CVEs
-                    except Exception:
-                        continue  # Skip errors, try next CVE
-                
-                if registry_has_images:
-                    found_registries.add(registry)
-                    print(f"  ✅ Found active registry: {registry}")
-            
-            registry_list = sorted(list(found_registries))
-            print(f"\n✅ Discovery complete! Found {len(registry_list)} active registries:")
-            for registry in registry_list:
-                print(f"   - {registry}")
-            
-            return registry_list
-            
-        except Exception as e:
-            print(f"❌ Registry discovery failed: {e}")
-            return []
-    
     def get_all_vulnerabilities_fixed(self, additional_filters: Optional[str] = None) -> List[Dict]:
         """Get ALL vulnerabilities using proper pagination"""
         all_vulnerabilities = []
@@ -152,6 +74,7 @@ class CrowdStrikeVulnAnalyzer:
                     if consecutive_errors >= max_consecutive_errors:
                         break
                     offset += limit
+                    time.sleep(1)  # Sleep before retrying
                     continue
                 
                 response.raise_for_status()
@@ -185,6 +108,9 @@ class CrowdStrikeVulnAnalyzer:
                 if batch_number > 200:  # Safety limit
                     print("🛑 Safety limit reached")
                     break
+                
+                # Small sleep between vulnerability API calls
+                time.sleep(0.1)
                     
             except requests.exceptions.RequestException as e:
                 print(f"❌ Error in batch {batch_number}: {e}")
@@ -192,7 +118,7 @@ class CrowdStrikeVulnAnalyzer:
                 if consecutive_errors >= max_consecutive_errors:
                     break
                 offset += limit
-                time.sleep(1)
+                time.sleep(1)  # Sleep before retrying
         
         print(f"✅ Fetching complete: {len(all_vulnerabilities):,} vulnerabilities collected")
         return all_vulnerabilities
@@ -223,8 +149,12 @@ class CrowdStrikeVulnAnalyzer:
                     total_count += count
                     registry_breakdown[registry] = count
                     
+                    # Small sleep between registry API calls
+                    time.sleep(0.05)
+                    
                 except Exception as e:
                     registry_breakdown[registry] = f"Error: {e}"
+                    time.sleep(0.1)  # Longer sleep on error
             
             return {
                 'cve_id': cve_id,
@@ -242,6 +172,7 @@ class CrowdStrikeVulnAnalyzer:
                 response.raise_for_status()
                 data = response.json()
                 total_count = data.get('resources', [{}])[0].get('count', 0)
+                time.sleep(0.05)  # Sleep after total count call
             except Exception as e:
                 return {'cve_id': cve_id, 'image_count': 0, 'error': str(e), 'success': False}
             
@@ -258,8 +189,13 @@ class CrowdStrikeVulnAnalyzer:
                     count = data.get('resources', [{}])[0].get('count', 0)
                     excluded_count += count
                     registry_breakdown[registry] = count
+                    
+                    # Small sleep between registry API calls
+                    time.sleep(0.05)
+                    
                 except Exception as e:
                     registry_breakdown[registry] = f"Error: {e}"
+                    time.sleep(0.1)  # Longer sleep on error
             
             final_count = max(0, total_count - excluded_count)
             
@@ -286,6 +222,9 @@ class CrowdStrikeVulnAnalyzer:
                 resources = data.get('resources', [])
                 count = resources[0].get('count', 0) if resources else 0
                 
+                # Small sleep after aggregation API call
+                time.sleep(0.05)
+                
                 return {
                     'cve_id': cve_id,
                     'image_count': count,
@@ -294,6 +233,7 @@ class CrowdStrikeVulnAnalyzer:
                 }
                 
             except requests.exceptions.RequestException as e:
+                time.sleep(0.1)  # Sleep on error
                 return {
                     'cve_id': cve_id,
                     'image_count': 0,
@@ -342,6 +282,7 @@ class CrowdStrikeVulnAnalyzer:
         cve_list = list(sorted(cve_ids))
         
         print(f"\n🔄 Processing {len(cve_list):,} CVEs for image counts...")
+        print("⏱️  Note: Small delays added between API calls for rate limiting")
         
         results = []
         failed_count = 0
@@ -393,14 +334,16 @@ class CrowdStrikeVulnAnalyzer:
 def main():
     # Configuration
     BASE_URL = "https://api.crowdstrike.com"
-    CLIENT_ID = ""
-    CLIENT_SECRET = ""
+    CLIENT_ID = "your_client_id_here"
+    CLIENT_SECRET = "your_client_secret_here"
     
     # Registry filtering options (choose ONE approach):
     
     # Option 1: Include only specific registries
     INCLUDE_REGISTRIES = [
-        "https://crmiked.azurecr.io"
+        "registry-1.docker.io",
+        "gcr.io", 
+        "quay.io"
     ]
     EXCLUDE_REGISTRIES = None
     
@@ -426,10 +369,6 @@ def main():
         start_time = time.time()
         
         analyzer = CrowdStrikeVulnAnalyzer(BASE_URL, CLIENT_ID, CLIENT_SECRET)
-        
-        # Optional: Discover all available registries first
-        print("\n🔍 Registry Discovery (optional):")
-        available_registries = analyzer.discover_all_registries()
         
         # Run analysis
         results = analyzer.analyze_vulnerabilities_working(
